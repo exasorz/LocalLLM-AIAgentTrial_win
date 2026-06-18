@@ -1,0 +1,136 @@
+---
+- name: Setup or cleanup AI development environment on WSL2
+  hosts: localhost
+  become: false
+  vars:
+    codex_user: "{{ target_user | default(ansible_user_id) }}"
+    codex_home: "{{ '/root' if codex_user == 'root' else '/home/' + codex_user }}"
+  tasks:
+    - name: Update package cache
+      apt:
+        update_cache: true
+      tags: ["install"]
+
+    - name: Install Podman, podman-compose, and bubblewrap
+      apt:
+        name:
+          - podman
+          - podman-compose
+          - bubblewrap
+        state: present
+      tags: ["install"]
+
+    - name: Create application directory
+      file:
+        path: /usr/local/share/ai-env
+        state: directory
+        mode: "0777"
+      tags: ["install"]
+
+    - name: Copy podman-compose.yml
+      copy:
+        src: files/podman-compose.yml
+        dest: /usr/local/share/ai-env/podman-compose.yml
+        mode: "0666"
+      tags: ["install"]
+
+    - name: Copy shared Codex config
+      copy:
+        src: files/config.toml
+        dest: /usr/local/share/ai-env/config.toml
+        mode: "0666"
+      tags: ["install"]
+
+    - name: Start Open WebUI and SearXNG with Podman Compose
+      shell:
+        cmd: podman-compose up -d
+        chdir: /usr/local/share/ai-env
+      tags: ["install"]
+
+    - name: Add Ollama and Codex environment variables
+      blockinfile:
+        path: /etc/profile
+        block: |
+          # Local OpenAI Codex / Ollama emulation settings
+          export OLLAMA_HOST="http://127.0.0.1:11434"
+          export OPENAI_API_BASE="http://127.0.0.1:11434/v1"
+          export CODEX_CONFIG_PATH="/usr/local/share/ai-env/config.toml"
+        marker: "# {mark} ANSIBLE MANAGED BLOCK (CODEX-OLLAMA)"
+      tags: ["install"]
+
+    - name: Install Codex CLI
+      shell:
+        cmd: curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh
+      environment:
+        DEBIAN_FRONTEND: noninteractive
+        HOME: "{{ codex_home }}"
+      become: true
+      become_user: "{{ codex_user }}"
+      tags: ["install"]
+
+    - name: Link Codex CLI into system PATH
+      shell:
+        cmd: |
+          set -eu
+          codex_bin="$(find "{{ codex_home }}" -type f -name codex -perm /111 2>/dev/null | head -n 1)"
+          if [ -z "$codex_bin" ]; then
+            echo "codex executable was not found under {{ codex_home }}" >&2
+            exit 1
+          fi
+          ln -sf "$codex_bin" /usr/local/bin/codex
+      tags: ["install"]
+
+    - name: Remove installer-created Codex config
+      file:
+        path: "{{ codex_home }}/.codex/config.toml"
+        state: absent
+      tags: ["install"]
+
+    - name: Create user Codex config directory
+      file:
+        path: "{{ codex_home }}/.codex"
+        state: directory
+        mode: "0755"
+      tags: ["install"]
+
+    - name: Copy user Codex config
+      copy:
+        src: files/config.toml
+        dest: "{{ codex_home }}/.codex/config.toml"
+        owner: "{{ codex_user }}"
+        mode: "0644"
+      tags: ["install"]
+
+    - name: Copy qwen3.5:2b model catalog
+      copy:
+        src: files/qwen3.5-2b_catalog.json
+        dest: "{{ codex_home }}/.codex/qwen3.5-2b_catalog.json"
+        owner: "{{ codex_user }}"
+        mode: "0644"
+      tags: ["install"]
+
+    - name: Stop and remove AI containers and volumes
+      shell:
+        cmd: podman-compose up -d --remove-orphans && podman-compose down -v
+        chdir: /usr/local/share/ai-env
+      ignore_errors: true
+      tags: ["uninstall"]
+
+    - name: Remove Ollama and Codex environment variable block
+      blockinfile:
+        path: /etc/profile
+        state: absent
+        marker: "# {mark} ANSIBLE MANAGED BLOCK (CODEX-OLLAMA)"
+      tags: ["uninstall"]
+
+    - name: Remove shared application directory
+      file:
+        path: /usr/local/share/ai-env
+        state: absent
+      tags: ["uninstall"]
+
+    - name: Remove user Codex directory
+      file:
+        path: "{{ codex_home }}/.codex"
+        state: absent
+      tags: ["uninstall"]

@@ -1,0 +1,35 @@
+{
+  "models": [
+    {
+      "slug": "qwen3.5:2b",
+      "display_name": "Qwen 3.5 2B (Ollama-Codex)",
+      "description": "Minimal configuration with fixed reasoning validation.",
+      "priority": 10,
+      "visibility": "list",
+      "supported_in_api": true,
+      "supported_reasoning_levels": [],
+      "supports_reasoning_summaries": false,
+      "supports_parallel_tool_calls": false,
+      "experimental_supported_tools": [
+        "bash_execution",
+        "file_read",
+        "file_write",
+        "patch_apply"
+      ],
+      "shell_type": "shell_command",
+      "input_modalities": [
+        "text"
+      ],
+      "truncation_policy": {
+        "mode": "tokens",
+        "policy_type": "rolling_window",
+        "scrolling_step_tokens": 2048,
+        "protected_system_tokens": 1024,
+        "limit": 16384,
+        "max_prompt_bytes": 32000
+      },
+      "support_verbosity": true,
+      "base_instructions": "You are a terminal execution agent. You MUST follow the core protocol to prevent system crash:\n\n1. INITIALIZATION: If a task begins, you MUST immediately call the \"create_goal\" tool to set the objective.\n2. TOOL EXECUTION: Execute exactly ONE tool call at a time. Stop and wait for the system output after each call.\n3. NO RAW TEXT: Never output raw JSON strings, markdown blocks, or chat explanations in the conversational response. Keep answers minimal.\n\nRead and strictly follow additional operational guidelines written in AGENTS.md."
+    }
+  ]
+}

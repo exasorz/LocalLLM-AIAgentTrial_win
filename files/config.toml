@@ -1,0 +1,35 @@
+# =============================================================================
+# OpenAI Codex / Ollama Local Emulation - Configuration Matrix
+# =============================================================================
+
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+allow_file_write = true
+allow_command_execution = true
+network_access = true
+
+model_provider = "ollama"
+model = "qwen3.5:2b"
+model_catalog_json = "~/.codex/qwen3.5-2b_catalog.json"
+requires_openai_auth = false
+
+[providers.ollama]
+base_url = "http://127.0.0.1:11434"
+api_key = "ollama"
+
+[providers.ollama.options]
+timeout = 30
+stream = true
+
+[[providers.ollama.models]]
+name = "qwen3.5:2b"
+ctx_len = 4096
+temperature = 0.0
+top_p = 0.9
+
+[privacy]
+telemetry_enabled = false
+offline_mode = true
+
+[tui.model_availability_nux]
+"gpt-5.5" = 4

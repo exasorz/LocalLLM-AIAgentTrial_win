@@ -1,0 +1,35 @@
+services:
+  # ---------------------------------------------------------------------------
+  # 1. Open WebUI (AIのユーザーインターフェース)
+  # ---------------------------------------------------------------------------
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    restart: always
+    network_mode: host
+    volumes:
+      - open-webui-data:/app/backend/data
+    environment:
+      - PORT=3000                                 # Windows側からアクセスするポートを3000番に指定
+      - OLLAMA_BASE_URL=http://127.0.0.1:11434    # WSL2ホスト側（Windows側）で動いているOllamaのAPIエンドポイントを指定
+      - ENABLE_RAG_WEB_SEARCH=True
+      - RAG_WEB_SEARCH_ENGINE=searxng
+      - RAG_WEB_SEARCH_URL=http://127.0.0.1:8888
+
+  # ---------------------------------------------------------------------------
+  # 2. SearXNG (プライバシー重視のメタ検索エンジン / RAGのソース)
+  # ---------------------------------------------------------------------------
+  searxng:
+    image: docker.io/searxng/searxng:latest
+    container_name: searxng
+    restart: always
+    network_mode: host
+    environment:
+      - SEARXNG_BASE_URL=http://127.0.0.1:8888/
+      - SEARXNG_PORT=8888
+    volumes:
+      - searxng-data:/etc/searxng
+
+volumes:
+  open-webui-data:
+  searxng-data:
